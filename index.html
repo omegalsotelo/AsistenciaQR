@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>AsistQR</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="module">
+  import { BrowserQRCodeReader } from 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm';
+  window.ZXingReader = new BrowserQRCodeReader();
+</script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --border: #2a2a3d;
+    --accent: #7c6aff;
+    --accent2: #ff6a9b;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e8e8f0;
+    --text2: #8888aa;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 0 env(safe-area-inset-bottom);
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 8px 4px; background: none; border: none;
+    color: var(--text2); font-family: 'DM Sans', sans-serif;
+    font-size: 11px; cursor: pointer; transition: color .2s;
+    -webkit-appearance: none;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 12px;
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .header-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header-subtitle { font-size: 12px; color: var(--text2); margin-left: auto; }
+
+  /* SCREENS */
+  .screen { display: none; padding: 16px 16px 90px; }
+  .screen.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px; margin-bottom: 12px;
+  }
+  .card-title { font-size: 13px; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .05em; font-family: 'Space Mono', monospace; }
+
+  /* INPUTS */
+  .input {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 15px; outline: none; margin-bottom: 10px;
+    transition: border-color .2s;
+  }
+  .input:focus { border-color: var(--accent); }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%; padding: 13px; border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: opacity .2s, transform .1s;
+    -webkit-appearance: none;
+  }
+  .btn:active { transform: scale(.97); opacity: .85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-danger { background: var(--red); color: #000; }
+  .btn-outline {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text); margin-top: 8px;
+  }
+  .btn-sm {
+    width: auto; padding: 6px 14px; font-size: 13px;
+    border-radius: 8px;
+  }
+
+  /* ALUMNO LIST */
+  .alumno-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 8px; display: flex;
+    align-items: center; gap: 12px;
+  }
+  .alumno-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0;
+  }
+  .alumno-info { flex: 1; min-width: 0; }
+  .alumno-name { font-weight: 600; font-size: 15px; }
+  .alumno-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .alumno-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; padding: 3px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; font-family: 'Space Mono', monospace;
+  }
+  .badge-green { background: rgba(74,222,128,.15); color: var(--green); }
+  .badge-red { background: rgba(248,113,113,.15); color: var(--red); }
+  .badge-yellow { background: rgba(251,191,36,.15); color: var(--yellow); }
+  .badge-purple { background: rgba(124,106,255,.15); color: var(--accent); }
+
+  /* SCANNER */
+  .scanner-wrap {
+    position: relative; width: 100%;
+    background: #000; border-radius: var(--radius);
+    overflow: hidden; aspect-ratio: 1;
+  }
+  #scannerVideo, #scannerCanvas {
+    width: 100%; height: 100%; object-fit: cover;
+    display: block;
+  }
+  #scannerCanvas { position: absolute; top: 0; left: 0; opacity: 0; }
+  .scanner-overlay {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .scanner-frame {
+    width: 65%; aspect-ratio: 1;
+    border: 2px solid var(--accent);
+    border-radius: 12px; position: relative;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.5);
+  }
+  .scanner-frame::before, .scanner-frame::after {
+    content: ''; position: absolute;
+    width: 20px; height: 20px; border-color: var(--accent2); border-style: solid;
+  }
+  .scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scanner-frame::after { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+  .scanner-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+    animation: scanLine 2s ease-in-out infinite;
+  }
+  @keyframes scanLine {
+    0% { top: 5%; } 100% { top: 95%; }
+  }
+  .scanner-status {
+    position: absolute; bottom: 12px; left: 0; right: 0;
+    text-align: center; font-size: 13px; color: rgba(255,255,255,.7);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* QR MODAL */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.8); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 24px; width: 100%; max-width: 340px;
+    text-align: center;
+  }
+  .modal h3 { font-size: 18px; margin-bottom: 4px; }
+  .modal p { color: var(--text2); font-size: 13px; margin-bottom: 16px; }
+  #qrCanvas { margin: 0 auto 16px; display: block; border-radius: 8px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 30px; padding: 10px 20px;
+    font-size: 14px; font-weight: 500; z-index: 999;
+    transition: transform .3s ease; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* REGISTRO items */
+  .reg-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .reg-item:last-child { border-bottom: none; }
+  .reg-time { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text2); flex-shrink: 0; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; text-align: center;
+  }
+  .stat-num { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 40px 20px; color: var(--text2); }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: 'Space Mono', monospace; font-size: 11px;
+    color: var(--text2); text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 10px; margin-top: 6px;
+  }
+
+  .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+  /* scan result */
+  .scan-result {
+    display: none; background: var(--surface2); border-radius: var(--radius);
+    padding: 16px; text-align: center; margin-top: 12px;
+  }
+  .scan-result.show { display: block; }
+  .scan-result-name { font-size: 20px; font-weight: 700; margin: 8px 0 4px; }
+  .scan-result-grupo { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+  .scan-btns { display: flex; gap: 8px; }
+  .scan-btns .btn { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <span class="header-logo">AsistQR</span>
+  <span class="header-subtitle" id="clockDisplay"></span>
+</div>
+
+<!-- SCREEN: INICIO / SCAN -->
+<div class="screen active" id="screen-scan">
+  <div class="section-title">Escanear QR</div>
+
+  <div class="card" style="padding:12px">
+    <div class="scanner-wrap">
+      <video id="scannerVideo" autoplay playsinline muted></video>
+      <canvas id="scannerCanvas"></canvas>
+      <div class="scanner-overlay">
+        <div class="scanner-frame">
+          <div class="scanner-line"></div>
+        </div>
+      </div>
+      <div class="scanner-status" id="scannerStatus">Apuntando al QR del alumno…</div>
+    </div>
+  </div>
+
+  <button class="btn btn-outline" onclick="toggleCamera()" id="camBtn">📷 Activar cámara</button>
+
+  <div class="scan-result" id="scanResult">
+    <div style="font-size:36px" id="scanAvatar">👤</div>
+    <div class="scan-result-name" id="scanName">—</div>
+    <div class="scan-result-grupo" id="scanGrupo">—</div>
+    <div class="scan-btns">
+      <button class="btn btn-success" onclick="registrar('entrada')">✅ Entrada</button>
+      <button class="btn btn-danger" onclick="registrar('salida')">🚪 Salida</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: ALUMNOS -->
+<div class="screen" id="screen-alumnos">
+  <div class="section-title">Catálogo de alumnos</div>
+
+  <div class="card">
+    <div class="card-title">Nuevo alumno</div>
+    <input class="input" id="newNombre" placeholder="Nombre completo" />
+    <input class="input" id="newGrupo" placeholder="Grupo / Carrera" />
+    <input class="input" id="newHorario" placeholder="Horario (ej: 08:00 - 14:00)" />
+    <button class="btn btn-primary" onclick="agregarAlumno()">+ Agregar alumno</button>
+  </div>
+
+  <div class="section-title" style="margin-top:16px">Alumnos registrados</div>
+  <div id="alumnosList"></div>
+</div>
+
+<!-- SCREEN: REGISTROS -->
+<div class="screen" id="screen-registros">
+  <div class="section-title">Registros de hoy</div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-num" id="statEntradas" style="color:var(--green)">0</div>
+      <div class="stat-label">Entradas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statSalidas" style="color:var(--red)">0</div>
+      <div class="stat-label">Salidas</div>
+    </div>
+  </div>
+
+  <div id="registrosList"></div>
+</div>
+
+<!-- MODAL QR -->
+<div class="modal-bg" id="qrModal">
+  <div class="modal">
+    <h3 id="qrModalName">—</h3>
+    <p id="qrModalGrupo">—</p>
+    <div id="qrCanvas"></div>
+    <button class="btn btn-primary" onclick="closeQRModal()">Cerrar</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toastIcon">✅</span>
+  <span id="toastMsg">OK</span>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-scan" onclick="showScreen('scan')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+      <rect x="7" y="7" width="10" height="10" rx="1"/>
+    </svg>
+    Escanear
+  </button>
+  <button class="nav-btn" id="nav-alumnos" onclick="showScreen('alumnos')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    Alumnos
+  </button>
+  <button class="nav-btn" id="nav-registros" onclick="showScreen('registros')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14,2 14,8 20,8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10,9 9,9 8,9"/>
+    </svg>
+    Registros
+  </button>
+</nav>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+let alumnos = JSON.parse(localStorage.getItem('alumnos') || '[]');
+let registros = JSON.parse(localStorage.getItem('registros') || '[]');
+let scanning = false;
+let stream = null;
+let scanInterval = null;
+let currentScanned = null;
+
+function save() {
+  localStorage.setItem('alumnos', JSON.stringify(alumnos));
+  localStorage.setItem('registros', JSON.stringify(registros));
+}
+
+// ── CLOCK ──────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockDisplay').textContent =
+    now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── NAV ────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name !== 'scan') stopCamera();
+  if (name === 'alumnos') renderAlumnos();
+  if (name === 'registros') renderRegistros();
+}
+
+// ── TOAST ──────────────────────────────────────────────
+function toast(msg, icon = '✅') {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastIcon').textContent = icon;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── ALUMNOS ────────────────────────────────────────────
+function agregarAlumno() {
+  const nombre = document.getElementById('newNombre').value.trim();
+  const grupo = document.getElementById('newGrupo').value.trim();
+  const horario = document.getElementById('newHorario').value.trim();
+  if (!nombre || !grupo) { toast('Nombre y grupo requeridos', '⚠️'); return; }
+  const id = 'ALU-' + Date.now();
+  alumnos.push({ id, nombre, grupo, horario });
+  save();
+  document.getElementById('newNombre').value = '';
+  document.getElementById('newGrupo').value = '';
+  document.getElementById('newHorario').value = '';
+  renderAlumnos();
+  toast('Alumno agregado', '✅');
+}
+
+function eliminarAlumno(id) {
+  alumnos = alumnos.filter(a => a.id !== id);
+  save(); renderAlumnos();
+  toast('Alumno eliminado', '🗑️');
+}
+
+function renderAlumnos() {
+  const el = document.getElementById('alumnosList');
+  if (!alumnos.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🎒</div><div>Sin alumnos registrados</div></div>';
+    return;
+  }
+  el.innerHTML = alumnos.map(a => `
+    <div class="alumno-item">
+      <div class="alumno-avatar">${a.nombre.charAt(0).toUpperCase()}</div>
+      <div class="alumno-info">
+        <div class="alumno-name">${a.nombre}</div>
+        <div class="alumno-meta">${a.grupo}${a.horario ? ' · ' + a.horario : ''}</div>
+      </div>
+      <div class="alumno-actions">
+        <button class="btn btn-primary btn-sm" onclick="showQR('${a.id}')">QR</button>
+        <button class="btn btn-outline btn-sm" onclick="eliminarAlumno('${a.id}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── QR GENERATION ─────────────────────────────────────
+function showQR(id) {
+  const a = alumnos.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('qrModalName').textContent = a.nombre;
+  document.getElementById('qrModalGrupo').textContent = a.grupo;
+  const container = document.getElementById('qrCanvas');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: a.id,
+    width: 200, height: 200,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('qrModal').classList.add('open');
+}
+
+function closeQRModal() {
+  document.getElementById('qrModal').classList.remove('open');
+}
+
+// ── CAMERA / SCAN ──────────────────────────────────────
+async function toggleCamera() {
+  if (scanning) { stopCamera(); return; }
+  const btn = document.getElementById('camBtn');
+  btn.textContent = '⏳ Iniciando…';
+  btn.disabled = true;
+
+  try {
+    // Esperar a que ZXing cargue (módulo async)
+    let attempts = 0;
+    while (!window.ZXingReader && attempts < 20) {
+      await new Promise(r => setTimeout(r, 200));
+      attempts++;
+    }
+    if (!window.ZXingReader) throw new Error('ZXing no cargó');
+
+    const video = document.getElementById('scannerVideo');
+    scanning = true;
+    btn.textContent = '⏹ Detener cámara';
+    btn.disabled = false;
+    document.getElementById('scannerStatus').textContent = 'Apuntando al QR del alumno…';
+
+    window.ZXingReader.decodeFromConstraints(
+      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+      video,
+      (result, err) => {
+        if (result) {
+          const found = alumnos.find(a => a.id === result.getText());
+          if (found && (!currentScanned || currentScanned.id !== found.id)) {
+            currentScanned = found;
+            showScanResult(found);
+          } else if (!found) {
+            document.getElementById('scannerStatus').textContent = '⚠️ QR no reconocido';
+            setTimeout(() => {
+              if (scanning) document.getElementById('scannerStatus').textContent = 'Apuntando al QR del alumno…';
+            }, 1500);
+          }
+        }
+      }
+    );
+  } catch (e) {
+    scanning = false;
+    btn.textContent = '📷 Activar cámara';
+    btn.disabled = false;
+    toast('No se pudo acceder a la cámara', '❌');
+  }
+}
+
+function stopCamera() {
+  if (window.ZXingReader) {
+    try { window.ZXingReader.reset(); } catch(e) {}
+  }
+  scanning = false;
+  currentScanned = null;
+  document.getElementById('camBtn').textContent = '📷 Activar cámara';
+  document.getElementById('camBtn').disabled = false;
+  document.getElementById('scannerStatus').textContent = 'Cámara detenida';
+  document.getElementById('scanResult').classList.remove('show');
+  const video = document.getElementById('scannerVideo');
+  if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+}
+
+function startDecoding() {} // ya no se usa
+
+function showScanResult(alumno) {
+  document.getElementById('scanAvatar').textContent = alumno.nombre.charAt(0).toUpperCase();
+  document.getElementById('scanName').textContent = alumno.nombre;
+  document.getElementById('scanGrupo').textContent = alumno.grupo + (alumno.horario ? ' · ' + alumno.horario : '');
+  document.getElementById('scanResult').classList.add('show');
+  document.getElementById('scannerStatus').textContent = '✅ Alumno detectado';
+  if (navigator.vibrate) navigator.vibrate(100);
+}
+
+function registrar(tipo) {
+  if (!currentScanned) return;
+  const ahora = new Date();
+  registros.unshift({
+    id: Date.now(),
+    alumnoId: currentScanned.id,
+    nombre: currentScanned.nombre,
+    grupo: currentScanned.grupo,
+    tipo,
+    fecha: ahora.toLocaleDateString('es-MX'),
+    hora: ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+  });
+  save();
+  currentScanned = null;
+  document.getElementById('scanResult').classList.remove('show');
+  document.getElementById('scannerStatus').textContent = 'Apuntando al QR del alumno…';
+  toast(tipo === 'entrada' ? 'Entrada registrada ✅' : 'Salida registrada 🚪', tipo === 'entrada' ? '✅' : '🚪');
+}
+
+// ── REGISTROS ──────────────────────────────────────────
+function renderRegistros() {
+  const hoy = new Date().toLocaleDateString('es-MX');
+  const hoyRegs = registros.filter(r => r.fecha === hoy);
+  const entradas = hoyRegs.filter(r => r.tipo === 'entrada').length;
+  const salidas = hoyRegs.filter(r => r.tipo === 'salida').length;
+  document.getElementById('statEntradas').textContent = entradas;
+  document.getElementById('statSalidas').textContent = salidas;
+
+  const el = document.getElementById('registrosList');
+  if (!registros.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>Sin registros aún</div></div>';
+    return;
+  }
+
+  // Agrupar por fecha
+  const grouped = {};
+  registros.forEach(r => {
+    if (!grouped[r.fecha]) grouped[r.fecha] = [];
+    grouped[r.fecha].push(r);
+  });
+
+  el.innerHTML = Object.entries(grouped).map(([fecha, regs]) => `
+    <div class="section-title" style="margin-top:16px">${fecha === hoy ? 'Hoy' : fecha}</div>
+    <div class="card" style="padding:8px 14px">
+      ${regs.map(r => `
+        <div class="reg-item">
+          <div class="alumno-avatar" style="width:32px;height:32px;font-size:13px">${r.nombre.charAt(0)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px">${r.nombre}</div>
+            <div style="font-size:12px;color:var(--text2)">${r.grupo}</div>
+          </div>
+          <span class="badge ${r.tipo === 'entrada' ? 'badge-green' : 'badge-red'}">${r.tipo}</span>
+          <div class="reg-time">${r.hora}</div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+// ── INIT ───────────────────────────────────────────────
+renderAlumnos();
+renderRegistros();
+</script>
+</body>
+</html>
