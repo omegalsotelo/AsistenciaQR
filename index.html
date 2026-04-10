@@ -8,7 +8,10 @@
 <title>AsistQR</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script type="module">
+  import { BrowserQRCodeReader } from 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm';
+  window.ZXingReader = new BrowserQRCodeReader();
+</script>
 <style>
   :root {
     --bg: #0a0a0f;
@@ -464,7 +467,7 @@ function showQR(id) {
   new QRCode(container, {
     text: a.id,
     width: 200, height: 200,
-    colorDark: '#ffffff', colorLight: '#13131a',
+    colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.H
   });
   document.getElementById('qrModal').classList.add('open');
@@ -478,51 +481,65 @@ function closeQRModal() {
 async function toggleCamera() {
   if (scanning) { stopCamera(); return; }
   const btn = document.getElementById('camBtn');
+  btn.textContent = '⏳ Iniciando…';
+  btn.disabled = true;
+
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
+    // Esperar a que ZXing cargue (módulo async)
+    let attempts = 0;
+    while (!window.ZXingReader && attempts < 20) {
+      await new Promise(r => setTimeout(r, 200));
+      attempts++;
+    }
+    if (!window.ZXingReader) throw new Error('ZXing no cargó');
+
     const video = document.getElementById('scannerVideo');
-    video.srcObject = stream;
     scanning = true;
     btn.textContent = '⏹ Detener cámara';
+    btn.disabled = false;
     document.getElementById('scannerStatus').textContent = 'Apuntando al QR del alumno…';
-    video.addEventListener('loadedmetadata', startDecoding);
+
+    window.ZXingReader.decodeFromConstraints(
+      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+      video,
+      (result, err) => {
+        if (result) {
+          const found = alumnos.find(a => a.id === result.getText());
+          if (found && (!currentScanned || currentScanned.id !== found.id)) {
+            currentScanned = found;
+            showScanResult(found);
+          } else if (!found) {
+            document.getElementById('scannerStatus').textContent = '⚠️ QR no reconocido';
+            setTimeout(() => {
+              if (scanning) document.getElementById('scannerStatus').textContent = 'Apuntando al QR del alumno…';
+            }, 1500);
+          }
+        }
+      }
+    );
   } catch (e) {
+    scanning = false;
+    btn.textContent = '📷 Activar cámara';
+    btn.disabled = false;
     toast('No se pudo acceder a la cámara', '❌');
   }
 }
 
 function stopCamera() {
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  clearInterval(scanInterval);
+  if (window.ZXingReader) {
+    try { window.ZXingReader.reset(); } catch(e) {}
+  }
   scanning = false;
+  currentScanned = null;
   document.getElementById('camBtn').textContent = '📷 Activar cámara';
+  document.getElementById('camBtn').disabled = false;
   document.getElementById('scannerStatus').textContent = 'Cámara detenida';
+  document.getElementById('scanResult').classList.remove('show');
+  const video = document.getElementById('scannerVideo');
+  if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
 }
 
-function startDecoding() {
-  const video = document.getElementById('scannerVideo');
-  const canvas = document.getElementById('scannerCanvas');
-  const ctx = canvas.getContext('2d');
-  scanInterval = setInterval(() => {
-    if (!scanning || video.readyState < 2) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-    if (code) {
-      const found = alumnos.find(a => a.id === code.data);
-      if (found && (!currentScanned || currentScanned.id !== found.id)) {
-        currentScanned = found;
-        showScanResult(found);
-      } else if (!found) {
-        document.getElementById('scannerStatus').textContent = 'QR no reconocido';
-      }
-    }
-  }, 300);
-}
+function startDecoding() {} // ya no se usa
 
 function showScanResult(alumno) {
   document.getElementById('scanAvatar').textContent = alumno.nombre.charAt(0).toUpperCase();
